@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Signup() {
+  const { setUser, setToken, setCustomerId } = useAuth();
+
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
@@ -30,10 +33,9 @@ export default function Signup() {
       return;
     }
 
-    localStorage.setItem("token", data.token);
-    if (data.customerId) {
-      localStorage.setItem("customerId", data.customerId);
-    }
+    setToken(data.token);
+    setUser(data.user);
+    if (data.customerId) setCustomerId(data.customerId);
 
     alert("Signup successful!");
 

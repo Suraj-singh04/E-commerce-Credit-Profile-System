@@ -1,85 +1,87 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+ import { useAuth } from "../contexts/AuthContext";
+ import { useNavigate } from "react-router-dom";
 
-export default function Login() {
-  const navigate = useNavigate();
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
-  const [loading, setLoading] = useState(false);
+ export default function Login() {
+   const { setUser, setToken, setCustomerId } = useAuth();
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoading(true);
+   const navigate = useNavigate();
+   const [form, setForm] = useState({
+     email: "",
+     password: "",
+   });
+   const [loading, setLoading] = useState(false);
 
-    const res = await fetch("http://localhost:5000/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+   async function handleLogin(e) {
+     e.preventDefault();
+     setLoading(true);
 
-    const data = await res.json();
-    setLoading(false);
+     const res = await fetch("http://localhost:5000/api/auth/login", {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify(form),
+     });
 
-    if (!res.ok) {
-      alert(data.message || "Invalid login");
-      return;
-    }
+     const data = await res.json();
+     setLoading(false);
 
-    localStorage.setItem("token", data.token);
-    if (data.customerId) {
-      localStorage.setItem("customerId", data.customerId);
-    }
+     if (!res.ok) {
+       alert(data.message || "Invalid login");
+       return;
+     }
 
-    // Redirect based on role
-    if (data.user.role === "merchant") {
-      navigate("/merchant/dashboard");
-    } else {
-      navigate("/demo/shop");
-    }
-  }
+     setToken(data.token);
+     setUser(data.user);
+     if (data.customerId) setCustomerId(data.customerId);
 
-  return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-50">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-8 rounded-xl shadow-md w-full max-w-md"
-      >
-        <h2 className="text-3xl font-bold text-center mb-6 text-blue-600">
-          Login
-        </h2>
+     // Redirect based on role
+     if (data.user.role === "merchant") {
+       navigate("/merchant/dashboard");
+     } else {
+       navigate("/demo/shop");
+     }
+   }
 
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full border p-3 rounded-lg mb-4"
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
+   return (
+     <div className="min-h-screen flex justify-center items-center bg-gray-50">
+       <form
+         onSubmit={handleLogin}
+         className="bg-white p-8 rounded-xl shadow-md w-full max-w-md"
+       >
+         <h2 className="text-3xl font-bold text-center mb-6 text-blue-600">
+           Login
+         </h2>
 
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full border p-3 rounded-lg mb-4"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
+         <input
+           type="email"
+           placeholder="Email"
+           className="w-full border p-3 rounded-lg mb-4"
+           value={form.email}
+           onChange={(e) => setForm({ ...form, email: e.target.value })}
+         />
 
-        <button
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
+         <input
+           type="password"
+           placeholder="Password"
+           className="w-full border p-3 rounded-lg mb-4"
+           value={form.password}
+           onChange={(e) => setForm({ ...form, password: e.target.value })}
+         />
 
-        <p className="mt-4 text-center">
-          Don’t have an account?{" "}
-          <a href="/signup" className="text-blue-600">
-            Signup
-          </a>
-        </p>
-      </form>
-    </div>
-  );
-}
+         <button
+           disabled={loading}
+           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
+         >
+           {loading ? "Logging in..." : "Login"}
+         </button>
+
+         <p className="mt-4 text-center">
+           Don’t have an account?{" "}
+           <a href="/signup" className="text-blue-600">
+             Signup
+           </a>
+         </p>
+       </form>
+     </div>
+   );
+ }

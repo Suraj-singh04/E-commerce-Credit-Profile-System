@@ -1,7 +1,7 @@
 // src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
@@ -15,20 +15,28 @@ export function AuthProvider({ children }) {
   const [customerId, setCustomerId] = useState(() =>
     localStorage.getItem("customerId")
   );
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    if (token) localStorage.setItem("token", token);
-    else localStorage.removeItem("token");
+    setAuthReady(true);
+  }, []);
+
+  useEffect(() => {
+    token
+      ? localStorage.setItem("token", token)
+      : localStorage.removeItem("token");
   }, [token]);
 
   useEffect(() => {
-    if (user) localStorage.setItem("user", JSON.stringify(user));
-    else localStorage.removeItem("user");
+    user
+      ? localStorage.setItem("user", JSON.stringify(user))
+      : localStorage.removeItem("user");
   }, [user]);
 
   useEffect(() => {
-    if (customerId) localStorage.setItem("customerId", customerId);
-    else localStorage.removeItem("customerId");
+    customerId
+      ? localStorage.setItem("customerId", customerId)
+      : localStorage.removeItem("customerId");
   }, [customerId]);
 
   function logout() {
@@ -37,21 +45,24 @@ export function AuthProvider({ children }) {
     setCustomerId(null);
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        token,
-        setToken,
-        user,
-        setUser,
-        customerId,
-        setCustomerId,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    token,
+    user,
+    customerId,
+
+    isAuthenticated: !!token,
+    isCustomer: user?.role === "customer",
+    isMerchant: user?.role === "merchant",
+
+    authReady,
+
+    setToken,
+    setUser,
+    setCustomerId,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -1,38 +1,74 @@
+// controllers/score-controller.js
+const { deriveFeatures, calculateScore } = require("../lib/scoringEngine");
+const aiAdapter = require("../lib/aiAdapter");
 const Customer = require("../models/Customer");
 const Order = require("../models/Order");
-const { updateScore } = require("../lib/scoringEngine");
 
-const dynamicScore = async (req, res) => {
+exports.realtimeScore = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id);
-    if (!customer)
-      return res.status(404).json({ message: "Customer not found" });
+    const customerId = req.user.customerId;
+    const { cart, paymentOption } = req.body;
+    if (!cart || typeof cart.amount !== "number")
+      return res.status(400).json({ message: "Invalid cart" });
 
-    const orders = await Order.find({ customerId: customer._id }).sort({
-      createdAt: -1,
+    const customer = await Customer.findById(customerId).lean();
+    const orders = await Order.find({ customerId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+    const features = deriveFeatures(customer, orders);
+    const ruleResult = calculateScore(customer, orders);
+
+    const payload = {
+      features,
+      ruleScore: ruleResult.score,
+      recentEvents: [{ type: "realtime_check", cart }],
+      eventType: "realtime_check",
+    };
+
+    let aiResp = null;
+    try {
+      aiResp = await aiAdapter.callModel(payload);
+    } catch (e) {
+      console.warn("AI realtime call failed:", e.message || e);
+    }
+
+    const aiScore = aiResp?.score ?? ruleResult.score;
+    const finalScore = Math.round(aiScore);
+    const approvedInstallment = finalScore >= 40;
+    const approvedPayLater = finalScore >= 70;
+
+    let plan = null;
+    if (paymentOption === "installment" && approvedInstallment) {
+      const interest = finalScore >= 80 ? 0.03 : finalScore >= 60 ? 0.07 : 0.12;
+      const total = +(cart.amount * (1 + interest)).toFixed(2);
+      const per = +(total / 4).toFixed(2);
+      plan = { type: "installment", interest, total, per, count: 4 };
+    } else if (paymentOption === "pay_later" && approvedPayLater) {
+      plan = {
+        type: "pay_later",
+        interest: 0,
+        total: cart.amount,
+        dueDays: 30,
+      };
+    }
+
+    return res.json({
+      approved:
+        paymentOption === "pay_now"
+          ? true
+          : paymentOption === "installment"
+          ? approvedInstallment
+          : approvedPayLater,
+      score: finalScore,
+      level: finalScore >= 80 ? "High" : finalScore >= 50 ? "Medium" : "Low",
+      reasons: (aiResp?.reasons?.map((r) => r.text) || [])
+        .concat(ruleResult.reasons.map((r) => r.text))
+        .slice(0, 6),
+      plan,
     });
-    const result = await updateScore(customer, orders);
-
-    // update customer summary
-    const totalOrders = orders.length;
-    const totalSpent = orders.reduce((acc, o) => acc + (o.amount || 0), 0);
-    const returnRate =
-      orders.filter((o) => o.status === "returned").length / (totalOrders || 1);
-    const successRate =
-      orders.filter((o) => o.status === "paid").length / (totalOrders || 1);
-
-    customer.totalOrders = totalOrders;
-    customer.totalSpent = totalSpent;
-    customer.returnRate = returnRate;
-    customer.paymentSuccessRate = successRate;
-    customer.lastActive = new Date();
-    await customer.save();
-
-    res.json(result);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error calculating dynamic score" });
+    console.error("realtimeScore error:", err);
+    res.status(500).json({ message: "realtime scoring failed" });
   }
 };
-
-module.exports = dynamicScore;

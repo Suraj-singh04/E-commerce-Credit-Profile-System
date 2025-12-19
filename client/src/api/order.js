@@ -1,12 +1,13 @@
 // client/src/api/orders.js
-export async function placeOrder({
+import { API_BASE_URL, DEFAULT_MERCHANT_ID } from "../config";
+
+placeOrder({
   token,
-  customerId,
   items,
   amount,
-  merchantId = "demo-store",
+  merchantId = DEFAULT_MERCHANT_ID,
 }) {
-  const res = await fetch("http://localhost:5000/api/orders", {
+  const res = await fetch(`${API_BASE_URL}/api/orders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

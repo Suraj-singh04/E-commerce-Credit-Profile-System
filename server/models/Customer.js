@@ -12,13 +12,27 @@ const CustomerSchema = new mongoose.Schema({
   paymentSuccessRate: { type: Number, default: 1 },
   chargebacks: { type: Number, default: 0 },
   lastActive: Date,
+  kycStatus: {
+    type: String,
+    enum: ["unverified", "pending", "verified"],
+    default: "unverified",
+  },
+  addressVerified: { type: Boolean, default: false },
+  bankLinked: { type: Boolean, default: false },
   boosters: {
     phoneVerified: { type: Boolean, default: false },
     cardLinked: { type: Boolean, default: false },
     verifiedReviews: { type: Number, default: 0 },
     onTimePayments: { type: Number, default: 0 },
   },
-  boostsApplied: [{ name: String, points: Number, appliedAt: Date }],
+  preferredPaymentOption: {
+    type: String,
+    enum: ["pay_now", "pay_later"],
+    default: "pay_now",
+  },
+  scoreBoost: { type: Number, default: 0 },
+  lastScore: { type: Number, default: 50 },
+  lastScoreReasons: { type: [String], default: [] },
 });
 
 module.exports = mongoose.model("Customer", CustomerSchema);

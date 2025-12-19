@@ -1,8 +1,9 @@
 import { setCustomerId } from "../utils/customer";
+import { API_BASE_URL } from "../config";
 
 export default function CreateCustomer() {
   async function create() {
-    const res = await fetch("http://localhost:5000/seed", {
+    const res = await fetch(`${API_BASE_URL}/seed`, {
       method: "POST",
     });
     const data = await res.json();

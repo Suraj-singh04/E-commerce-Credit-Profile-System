@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Customer = require("../models/Customer");
+const Score = require("../models/Score");
+const { calculateScore } = require("../lib/scoringEngine");
 
 const JWT_SECRET = process.env.JWT_SECRET || "devsecret";
 const TOKEN_EXPIRES = "7d";
@@ -20,10 +22,35 @@ const signUp = async (req, res) => {
     await user.setPassword(password);
     await user.save();
 
-    // if customer, create linked Customer profile
+    // if customer, create linked Customer profile and initial Score
     let customerProfile = null;
     if (user.role === "customer") {
       customerProfile = await Customer.create({ name, email });
+
+      // Calculate initial score (should be ~50 for new customer with no orders)
+      const initialScore = calculateScore(customerProfile.toObject(), []);
+      console.log(
+        `[SIGNUP] customerId=${customerProfile._id}, calculated initialScore=${initialScore}`
+      );
+      const scoreLevel =
+        initialScore >= 80 ? "High" : initialScore >= 50 ? "Medium" : "Low";
+
+      await Score.create({
+        customerId: customerProfile._id,
+        score: initialScore,
+        level: scoreLevel,
+        eventType: "signup",
+        reasons: [
+          {
+            feature: "new_account",
+            text: "New customer account created",
+            value: initialScore,
+          },
+        ],
+      });
+      console.log(
+        `[SIGNUP] Score doc created for ${customerProfile._id}: score=${initialScore}, level=${scoreLevel}`
+      );
     }
 
     const token = jwt.sign(

@@ -295,7 +295,6 @@ export default function Signup() {
               >
                 <option value="customer">🛒 I am a Customer</option>
                 <option value="merchant">🏪 I am a Merchant</option>
-                <option value="admin">👑 I am an Admin</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                 <svg

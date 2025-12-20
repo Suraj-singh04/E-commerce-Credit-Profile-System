@@ -28,28 +28,30 @@ const signUp = async (req, res) => {
       customerProfile = await Customer.create({ name, email });
 
       // Calculate initial score (should be ~50 for new customer with no orders)
-      const initialScore = calculateScore(customerProfile.toObject(), []);
+      const scoreResult = calculateScore(customerProfile.toObject(), []);
       console.log(
-        `[SIGNUP] customerId=${customerProfile._id}, calculated initialScore=${initialScore}`
+        `[SIGNUP] customerId=${
+          customerProfile._id
+        }, calculated scoreResult=${JSON.stringify(scoreResult)}`
       );
-      const scoreLevel =
-        initialScore >= 80 ? "High" : initialScore >= 50 ? "Medium" : "Low";
 
       await Score.create({
         customerId: customerProfile._id,
-        score: initialScore,
-        level: scoreLevel,
+        score: scoreResult.score,
+        level: scoreResult.level,
         eventType: "signup",
-        reasons: [
+        reasons: ["New customer account created"],
+        reasonsRule: [
           {
             feature: "new_account",
             text: "New customer account created",
-            value: initialScore,
+            value: scoreResult.score,
+            weight: 0,
           },
         ],
       });
       console.log(
-        `[SIGNUP] Score doc created for ${customerProfile._id}: score=${initialScore}, level=${scoreLevel}`
+        `[SIGNUP] Score doc created for ${customerProfile._id}: score=${scoreResult.score}, level=${scoreResult.level}`
       );
     }
 
@@ -60,12 +62,21 @@ const signUp = async (req, res) => {
     );
     res.json({
       token,
-      user: { id: user._id, email: user.email, role: user.role },
+      user: { _id: user._id, email: user.email, role: user.role },
       customerId: customerProfile?._id,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Signup failed" });
+    console.error("Signup error:", err);
+    // Handle duplicate email error from MongoDB
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+    // Handle validation errors
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+    res.status(500).json({ message: "Signup failed. Please try again." });
   }
 };
 
@@ -92,8 +103,8 @@ const login = async (req, res) => {
       customerId: customer?._id,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Login failed" });
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Login failed. Please try again." });
   }
 };
 

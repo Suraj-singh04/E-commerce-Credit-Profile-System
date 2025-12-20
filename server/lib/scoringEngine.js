@@ -60,7 +60,8 @@ function deriveFeatures(customer = {}, orders = []) {
   };
 }
 
-function calculateScore(customer = {}, orders = []) {
+function calculateScore(customer = {}, orders = [], options = {}) {
+  const { bonusPoints = 0 } = options;
   const features = deriveFeatures(customer, orders);
 
   let score = 35; // neutral base
@@ -158,6 +159,18 @@ function calculateScore(customer = {}, orders = []) {
     );
   }
 
+  // Apply manual bonus points (e.g. from immediate event)
+  if (bonusPoints !== 0) {
+    // We don't use addReason here to avoid capping logic issues, just raw adjust
+    score += bonusPoints;
+    reasons.push({
+      feature: "event_bonus",
+      text: bonusPoints > 0 ? "Recent positive activity" : "Recent penalty",
+      value: bonusPoints > 0 ? `+${bonusPoints}` : `${bonusPoints}`,
+      weight: bonusPoints,
+    });
+  }
+
   score = Math.max(0, Math.min(100, score));
 
   const level = score >= 80 ? "High" : score >= 50 ? "Medium" : "Low";
@@ -174,9 +187,9 @@ module.exports = {
   deriveFeatures,
   calculateScore,
   // updateScore: compute rule-score, persist Score doc and update customer summary
-  async updateScore(customer = {}, orders = [], meta = {}) {
+  async updateScore(customer = {}, orders = [], meta = {}, options = {}) {
     try {
-      const result = calculateScore(customer, orders);
+      const result = calculateScore(customer, orders, options);
 
       const scoreDoc = await Score.create({
         customerId: customer._id,
